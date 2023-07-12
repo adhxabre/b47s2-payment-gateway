@@ -1,23 +1,36 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Row, Col } from 'react-bootstrap';
-import convertRupiah from 'rupiah-format';
-import { useQuery, useMutation } from 'react-query';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Container, Row, Col } from "react-bootstrap";
+import convertRupiah from "rupiah-format";
+import { useQuery, useMutation } from "react-query";
 
-import Navbar from '../components/Navbar';
+import Navbar from "../components/Navbar";
 
-import { API } from '../config/api';
+import { API } from "../config/api";
 
 export default function DetailProduct() {
   let navigate = useNavigate();
   let { id } = useParams();
 
-  let { data: product } = useQuery('productDetailCache', async () => {
-    const response = await API.get('/product/' + id);
+  let { data: product } = useQuery("productDetailCache", async () => {
+    const response = await API.get("/product/" + id);
     return response.data.data;
   });
 
   // code here
+  useEffect(() => {
+    const midtransScriptUrl = "https://app.sandbox.midtrans.com/snap/snap.js";
+    const myMidtransClientKey = process.env.REACT_APP_MIDTRANS_CLIENT_KEY;
+
+    let scriptTag = document.createElement("script");
+    scriptTag.src = midtransScriptUrl;
+    scriptTag.setAttribute("data-client-key", myMidtransClientKey);
+
+    document.body.appendChild(scriptTag);
+    return () => {
+      document.body.removeChild(scriptTag);
+    };
+  });
 
   const handleBuy = useMutation(async (e) => {
     try {
@@ -25,7 +38,7 @@ export default function DetailProduct() {
 
       const config = {
         headers: {
-          'Content-type': 'application/json',
+          "Content-type": "application/json",
         },
       };
 
@@ -37,10 +50,28 @@ export default function DetailProduct() {
 
       const body = JSON.stringify(data);
 
-      const response = await API.post('/transaction', body, config);
-      console.log("transaction success :", response)
+      const response = await API.post("/transaction", body, config);
+      console.log("transaction success :", response);
 
       // code here
+      const token = response.data.data.token;
+      window.snap.pay(token, {
+        onSuccess: function (result) {
+          console.log(result);
+          navigate("/profile");
+        },
+        onPending: function (result) {
+          console.log(result);
+          navigate("/profile");
+        },
+        onError: function (result) {
+          console.log(result);
+          navigate("/profile");
+        },
+        onClose: function () {
+          alert("You closed the popup without finishing the payment!");
+        },
+      });
     } catch (error) {
       console.log("transaction failed : ", error);
     }
